@@ -1,0 +1,109 @@
+basePath: /
+definitions:
+  auth.RegisterRequest:
+    properties:
+      email:
+        maxLength: 254
+        type: string
+      first_name:
+        maxLength: 50
+        minLength: 2
+        type: string
+      last_name:
+        maxLength: 50
+        minLength: 2
+        type: string
+      password:
+        maxLength: 72
+        minLength: 8
+        type: string
+      phone_number:
+        maxLength: 30
+        type: string
+    required:
+    - email
+    - first_name
+    - last_name
+    - password
+    type: object
+  models.User:
+    properties:
+      active:
+        type: boolean
+      created_at:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: string
+      last_name:
+        type: string
+      phone_number:
+        type: string
+      updated_at:
+        type: string
+      verified:
+        type: boolean
+    type: object
+host: localhost:8000
+info:
+  contact: {}
+  description: Top1 Backend API documentation.
+  title: Top1 API
+  version: "1.0"
+paths:
+  /:
+    get:
+      description: Check API availability and database connectivity
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API and database are healthy
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Health check
+      tags:
+      - Health
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account with name, email, optional phone number,
+        and password
+      parameters:
+      - description: User registration details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User created successfully
+          schema:
+            $ref: '#/definitions/models.User'
+        "400":
+          description: Invalid request or email already exists
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Register a new user
+      tags:
+      - Authentication
+schemes:
+- http
+- https
+swagger: "2.0"

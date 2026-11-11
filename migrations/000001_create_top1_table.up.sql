@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
+  first_name VARCHAR(50) NOT NULl,
+  last_name VARCHAR(50) NOT NULL,
+  email VARCHAR(254) NOT NULL UNIQUE,
+  phone_number VARCHAR(30) NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  active BOOLEAN DEFAULT FALSE,
+  verified BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
