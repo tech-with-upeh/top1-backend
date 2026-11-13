@@ -2,4 +2,4 @@
 .sqlfluff
 tmp/
 .git/
-
+bin/

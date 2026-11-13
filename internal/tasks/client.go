@@ -24,10 +24,11 @@ func NewClient(redisURL string) (*Client, error) {
 
 func (c *Client) SendEmail(
 	ctx context.Context,
+	taskId string,
 	to, subject, body string,
 	isHTML bool,
 ) (*asynq.TaskInfo, error) {
-	task, err := NewEmailTask(to, subject, body, isHTML)
+	task, err := NewEmailTask(taskId, to, subject, body, isHTML)
 	if err != nil {
 		return nil, err
 	}
@@ -36,8 +37,9 @@ func (c *Client) SendEmail(
 		ctx,
 		task,
 		asynq.Queue(QueueEmails),
+		asynq.TaskID(taskId),
 		asynq.MaxRetry(10),
-		asynq.Timeout(30*time.Second),
+		asynq.Timeout(4*time.Minute),
 	)
 
 	return taskInfo, err

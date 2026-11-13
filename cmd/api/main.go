@@ -77,6 +77,8 @@ func main() {
 	authRepo := repo.NewAuthRepository(pool)
 	authService := services.NewAuthService(authRepo, taskService, utilService, cfg)
 	authHandler := authHandlers.NewAuthHandler(authService)
+	userService := services.NewUserService(authRepo)
+	userHandler := handlers.NewUserHandler(userService)
 
 	router := gin.Default()
 	router.SetTrustedProxies(nil)
@@ -93,7 +95,18 @@ func main() {
 	v1.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	v1.POST("/register", authHandler.Register)
+	v1.POST("/resend-verification", authHandler.ResendVerification)
+	v1.POST("/login", authHandler.Login)
+	v1.POST("/logout", authHandler.Logout)
+	v1.POST("/refresh", authHandler.Refresh)
 	v1.POST("/verify-otp", authHandler.VerifyOTPCode)
+	v1.POST("/verify-token", authHandler.VerifyTokenCode)
+
+	users := v1.Group("/users")
+	users.Use(middleware.AuthMiddleware(utilService))
+	{
+		users.GET("/me", userHandler.GetMe)
+	}
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,

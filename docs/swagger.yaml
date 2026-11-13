@@ -1,5 +1,34 @@
 basePath: /
 definitions:
+  auth.LoginRequest:
+    properties:
+      email:
+        maxLength: 254
+        type: string
+      password:
+        maxLength: 72
+        minLength: 8
+        type: string
+      remember_me:
+        type: boolean
+    required:
+    - email
+    - password
+    type: object
+  auth.LogoutRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  auth.RefreshRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
   auth.RegisterRequest:
     properties:
       email:
@@ -19,12 +48,52 @@ definitions:
         type: string
       phone_number:
         maxLength: 30
+        minLength: 5
         type: string
     required:
     - email
     - first_name
     - last_name
     - password
+    type: object
+  auth.ResendVerificationRequest:
+    properties:
+      email:
+        maxLength: 254
+        type: string
+    required:
+    - email
+    type: object
+  auth.VerifyOtpRequest:
+    properties:
+      code:
+        maxLength: 6
+        minLength: 6
+        type: string
+      email:
+        maxLength: 254
+        type: string
+    required:
+    - code
+    - email
+    type: object
+  auth.VerifyTokenRequest:
+    properties:
+      email:
+        maxLength: 254
+        type: string
+      token:
+        type: string
+    required:
+    - email
+    - token
+    type: object
+  models.LoggedInResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
     type: object
   models.User:
     properties:
@@ -68,7 +137,137 @@ paths:
       summary: Health check
       tags:
       - Health
-  /auth/register:
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate a user using email and password. Returns access and
+        refresh JWTs.
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            $ref: '#/definitions/models.LoggedInResponse'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Invalid email or password
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Email not verified or account disabled
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Login user
+      tags:
+      - Authentication
+  /logout:
+    post:
+      consumes:
+      - application/json
+      description: Revoke the supplied refresh token and terminate its session.
+      parameters:
+      - description: Refresh token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.LogoutRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logged out successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Invalid or revoked refresh token
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Logout user
+      tags:
+      - Authentication
+  /refresh:
+    post:
+      consumes:
+      - application/json
+      description: Validate and rotate a refresh JWT. The old refresh token is revoked
+        and a new access and refresh token pair is returned.
+      parameters:
+      - description: Refresh token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tokens refreshed successfully
+          schema:
+            $ref: '#/definitions/models.LoggedInResponse'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Invalid, expired or revoked refresh token
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Refresh authentication tokens
+      tags:
+      - Authentication
+  /register:
     post:
       consumes:
       - application/json
@@ -101,6 +300,159 @@ paths:
               type: string
             type: object
       summary: Register a new user
+      tags:
+      - Authentication
+  /resend-verification:
+    post:
+      consumes:
+      - application/json
+      description: Send a new verification email to an existing, inactive, unverified
+        account.
+      parameters:
+      - description: Email address
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.ResendVerificationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Verification email queued
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: User not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Verification not allowed
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Resend verification email
+      tags:
+      - Authentication
+  /users/me:
+    get:
+      description: Returns the currently authenticated user's account information.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized or invalid access token
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Account unavailable
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get authenticated user
+      tags:
+      - Users
+  /verify-otp:
+    post:
+      consumes:
+      - application/json
+      description: Verify a user's email address using the six-digit OTP sent during
+        registration. Returns access and refresh tokens.
+      parameters:
+      - description: Email and verification code
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.VerifyOtpRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Email verified successfully
+          schema:
+            $ref: '#/definitions/models.LoggedInResponse'
+        "400":
+          description: Invalid verification details or expired OTP
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Verify email OTP
+      tags:
+      - Authentication
+  /verify-token:
+    post:
+      consumes:
+      - application/json
+      description: Verify a user's email address using the token sent during registration.
+        Returns access and refresh tokens.
+      parameters:
+      - description: Email and verification token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.VerifyTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Email verified successfully
+          schema:
+            $ref: '#/definitions/models.LoggedInResponse'
+        "400":
+          description: Invalid verification details or expired OTP
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Verify email Token
       tags:
       - Authentication
 schemes:

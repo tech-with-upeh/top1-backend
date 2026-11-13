@@ -15,6 +15,7 @@ import (
 	"top1/internal/config"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 type UtilService struct {
@@ -39,7 +40,9 @@ var (
 )
 
 type AccessClaims struct {
-	UserID string `json:"user_id"`
+	UserID     string `json:"user_id"`
+	TokenType  string `json:"token_type"`
+	RememberMe bool   `json:"remember_me"`
 	jwt.RegisteredClaims
 }
 
@@ -57,7 +60,8 @@ func (u *UtilService) GenerateAccessToken(
 	now := time.Now()
 
 	claims := AccessClaims{
-		UserID: userID,
+		UserID:    userID,
+		TokenType: "access",
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    "top1",
 			Subject:   userID,
@@ -105,14 +109,72 @@ func (u *UtilService) ValidateAccessToken(
 }
 
 // GenerateRefreshToken creates a cryptographically random opaque token.
-func (u *UtilService) GenerateRefreshToken() (string, error) {
-	bytes := make([]byte, 32)
+func (u *UtilService) GenerateRefreshToken(
+	userID string,
+	duration time.Duration,
+	rememberMe bool,
+) (string, error) {
+	secret := u.cfg.JWTSecret
 
-	if _, err := rand.Read(bytes); err != nil {
-		return "", err
+	if secret == "" {
+		return "", ErrEmptySecret
 	}
 
-	return base64.RawURLEncoding.EncodeToString(bytes), nil
+	now := time.Now()
+
+	claims := AccessClaims{
+		UserID:     userID,
+		TokenType:  "refresh",
+		RememberMe: rememberMe,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    "top1",
+			Subject:   userID,
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(duration)),
+			ID:        uuid.NewString(),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	return token.SignedString([]byte(secret))
+}
+
+func (u *UtilService) ValidateRefreshToken(
+	tokenString string,
+) (*AccessClaims, error) {
+	secret := u.cfg.JWTSecret
+
+	if secret == "" {
+		return nil, ErrEmptySecret
+	}
+
+	claims := &AccessClaims{}
+
+	token, err := jwt.ParseWithClaims(
+		tokenString,
+		claims,
+		func(token *jwt.Token) (any, error) {
+			if token.Method != jwt.SigningMethodHS256 {
+				return nil, ErrInvalidToken
+			}
+
+			return []byte(secret), nil
+		},
+		jwt.WithIssuer("top1"),
+		jwt.WithExpirationRequired(),
+	)
+
+	if err != nil || token == nil || !token.Valid {
+		return nil, ErrInvalidToken
+	}
+
+	// Check token type AFTER parsing.
+	if claims.TokenType != "refresh" {
+		return nil, ErrInvalidToken
+	}
+
+	return claims, nil
 }
 
 // HashRefreshToken hashes a refresh token before database storage.
